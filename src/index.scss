@@ -1,0 +1,22 @@
+.app {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+}
+
+.app__main {
+  width: 800px;
+  height: 600px;
+  border: 1px solid #000;
+}
+
+.app__controls {
+  display: flex;
+  flex-direction: column;
+  margin-left: 50px;
+  margin-right: auto;
+}
+
+.btn {
+  margin: 10px 0;
+}
