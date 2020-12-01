@@ -1,8 +1,8 @@
 /* global $, JitsiMeetJS */
 import React, { useEffect, useState } from 'react'
 
-// const DOMAIN = 'beta.meet.jit.si'
-const DOMAIN = 'meet.educate.market'
+const DOMAIN = 'beta.meet.jit.si'
+// const DOMAIN = 'meet.educate.market'
 const options = {
   hosts: {
     domain: DOMAIN,
@@ -118,10 +118,10 @@ function onRemoteTrackAdded (track) {
   console.log('append remote track: ', track.getType())
 
   if (track.getType() === 'video') {
-    $('.app__main').append(`<video autoplay='false' id='${participant}video${idx}' width='400' height='300' controls>`)
+    $('#video-root').append(`<video autoplay='false' id='${participant}video${idx}' width='400' height='300' controls>`)
   } else {
     console.log('append remote audio')
-    $('.app__main').append(`<audio autoplay='false' id='${participant}audio${idx}'>`)
+    $('#video-root').append(`<audio autoplay='false' id='${participant}audio${idx}'>`)
   }
 
   track.attach($(`#${id}`)[0])
@@ -133,6 +133,8 @@ function onRemoteTrackRemoved () {
 
 function onConferenceJoined () {
   console.log('conference joined')
+  isJoined = true
+
   localTracks.forEach(track => {
     room.addTrack(track)
   })
@@ -174,6 +176,8 @@ function onLocalTracks (tracks) {
   } = JitsiMeetJS.events.track
 
   tracks.forEach((track, i) => {
+    track.mute()
+
     track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, audioLevel => {
       console.log(`Audio level local: ${audioLevel}`)
     })
@@ -192,13 +196,13 @@ function onLocalTracks (tracks) {
 
     if (track.getType() === 'video') {
       console.log('local video append')
-      $('.app__main').append(`<video autoplay='false' id='localVideo${i}' width='400' height='300' controls>`)
+      $('#video-root').append(`<video autoplay='false' id='localVideo${i}' width='400' height='300' controls>`)
       track.attach($(`#localVideo${i}`)[0])
     }
 
     if (track.getType() === 'audio') {
       console.log('local video append')
-      $('.app__main').append(`<audio autoplay='autoplay' muted='true' id='localAudio${i}'>`)
+      $('#video-root').append(`<audio autoplay='autoplay' muted='true' id='localAudio${i}'>`)
       track.attach($(`#localAudio${i}`)[0])
     }
 
@@ -230,8 +234,6 @@ function createConnection () {
 }
 
 export default function App () {
-  const [isModerator, setIsModerator] = useState(false)
-
   useEffect(() => {
     // window.addEventListener('load', createConnection)
 
@@ -242,18 +244,20 @@ export default function App () {
 
   function setModeratorMode () {
     console.log('moderator')
-    setIsModerator(true)
+    localTracks.forEach(track => {
+      track.unmute()
+    })
   }
 
   function setUserMode () {
     console.log('user')
-    setIsModerator(false)
+    localTracks.forEach(track => {
+      track.mute()
+    })
   }
 
   return (
     <div className="app">
-      <div className="app__main">
-      </div>
       <div className="app__controls">
         <button className="btn" type="button" onClick={setModeratorMode}>Модератор</button>
         <button className="btn" type="button" onClick={setUserMode}>Слушатель</button>
