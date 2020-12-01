@@ -49,17 +49,21 @@ const {
 function onConnectionEstablished () {
   console.log('connection established')
   room = connection.initJitsiConference(CONFERENCE, confOptions)
-  room.on(TRACK_ADDED, onRemoteTrackAdded)
+  room.on(JitsiMeetJS.events.conference.TRACK_ADDED, onRemoteTrackAdded)
   room.on(TRACK_REMOVED, onRemoteTrackRemoved)
   room.on(CONFERENCE_JOINED, onConferenceJoined)
+  room.on(USER_JOINED, onUserJoined)
   room.on(TRACK_MUTE_CHANGED, onTrackMuteChanged)
   room.on(DISPLAY_NAME_CHANGED, onDisplayNameChanged)
   room.on(TRACK_AUDIO_LEVEL_CHANGED, onTrackAudioLevelChanged)
   room.on(PHONE_NUMBER_CHANGED, onPhoneNumberChanged)
+  room.join()
 }
 
 function onRemoteTrackAdded (track) {
+  console.log('remote track added', track.getType(), track.isLocal())
   if (track.isLocal()) return
+  console.log('remote track not local')
 
   const participant = track.getParticipantId()
 
@@ -88,10 +92,13 @@ function onRemoteTrackAdded (track) {
   const id = participant + track.getType() + idx
 
   if (track.getType() === 'video') {
+    console.log('append remote video')
+
     $('.app__main').append(
-      `<video autoplay='1' id'${participant}video${idx} />`
+      `<video autoplay='1' id='${participant}video${idx} width='200' height='150' controls />`
     )
   } else {
+    console.log('append remote audio')
     $('.app__main').append(
       `<audio autoplay='1' id=${participant}audio${idx} />`
     )
@@ -105,6 +112,15 @@ function onRemoteTrackRemoved () {
 }
 
 function onConferenceJoined () {
+  console.log('conference joined')
+  localTracks.forEach(track => {
+    room.addTrack(track)
+  })
+}
+
+function onUserJoined (id) {
+  console.log(`user join: ${id}`)
+  remoteTracks[id] = []
 }
 
 function onTrackMuteChanged () {
@@ -147,11 +163,13 @@ function onLocalTracks (tracks) {
     })
 
     if (track.getType() === 'video') {
-      $('.app__main').append(`<video autoplay='1' id='localVideo${i}' width='800' height='600' controls>`)
+      console.log('remote video append')
+      $('.app__main').append(`<video autoplay='1' id='localVideo${i}' width='400' height='300' controls>`)
       track.attach($(`#localVideo${i}`)[0])
     }
 
     if (track.getType() === 'audio') {
+      console.log('remote video append')
       $('.app__main').append(`<audio autoplay='1' muted='true' id='localAudio${i}'>`)
       track.attach($(`#localAudio${i}`)[0])
     }
