@@ -20,7 +20,7 @@ const initOptions = {
   disableAudioLevels: false
 };
 
-const CONFERENCE = 'abc123is48282aabd2223'
+const CONFERENCE = 'abc123is48282aabd222311aabb'
 let localTracks = []
 let isJoined = false
 let room = null
@@ -43,6 +43,7 @@ function onConnectionEstablished () {
   } = JitsiMeetJS.events.conference
 
   room = connection.initJitsiConference(CONFERENCE, confOptions)
+
   room.on(TRACK_ADDED, onRemoteTrackAdded)
   room.on(TRACK_REMOVED, onRemoteTrackRemoved)
   room.on(CONFERENCE_JOINED, onConferenceJoined)
@@ -51,6 +52,8 @@ function onConnectionEstablished () {
   room.on(DISPLAY_NAME_CHANGED, onDisplayNameChanged)
   room.on(TRACK_AUDIO_LEVEL_CHANGED, onTrackAudioLevelChanged)
   room.on(PHONE_NUMBER_CHANGED, onPhoneNumberChanged)
+
+  room.addCommandListener('testCmd', onTestCmd)
 
   JitsiMeetJS.createLocalTracks({
     devices: ['audio', 'video'],
@@ -77,6 +80,10 @@ function onConnectionEstablished () {
   room.join()
 }
 
+function onTestCmd (...args) {
+  console.log('received command: testCmd', ...args)
+}
+
 function onRemoteTrackAdded (track) {
   console.log('remote track added', track.getType(), track.isLocal())
   const {
@@ -87,19 +94,12 @@ function onRemoteTrackAdded (track) {
   } = JitsiMeetJS.events.track
 
   if (track.isLocal()) return
-  console.log('remote track not local')
 
   const participant = track.getParticipantId()
 
   if (!remoteTracks[participant]) {
     remoteTracks[participant] = []
   }
-
-  const idx = remoteTracks[participant].push(track)
-
-  // track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, audioLevel => {
-  //   console.log(`Audio level remote: ${audioLevel}`)
-  // })
 
   track.addEventListener(TRACK_MUTE_CHANGED, (state) => {
     console.log('remote track mute changed: ', state)
@@ -109,35 +109,52 @@ function onRemoteTrackAdded (track) {
     console.log('Remote track stopped')
   })
 
-//   track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, diveiceID => {
-//     console.log(`track audio output device was changed to ${diveiceID}`)
-//   })
-
-  const id = participant + track.getType() + idx
+  const id = participant + track.getType()
 
   console.log('append remote track: ', track.getType())
 
   if (track.getType() === 'video') {
-    $('#video-root').append(`<video autoplay='false' id='${participant}video${idx}' width='400' height='300' controls>`)
+    $('#video-root').append(`<video autoplay='false' id='${participant}video' width='400' height='300' controls>`)
   } else {
     console.log('append remote audio')
-    $('#video-root').append(`<audio autoplay='false' id='${participant}audio${idx}'>`)
+    $('#video-root').append(`<audio autoplay='false' id='${participant}audio'>`)
   }
 
   track.attach($(`#${id}`)[0])
 }
 
 
-function onRemoteTrackRemoved () {
+function onRemoteTrackRemoved (track) {
+  console.log('remote track removed: ', track)
+
+  const participant = track.getParticipantId()
+
+  if (!remoteTracks[participant]) return
+
+
+  const id = participant + track.getType()
+  const element = $(`#${id}`)[0]
+  console.log('removed element: ', element, `#${id}`)
+
+  if (!element) return
+
+  track.detach(element)
+  element.remove()
+
+  const idx = remoteTracks[participant].indexOf(track)
+  console.log('track idx: ', idx, participant, track.getType())
+
+  if (idx === -1) return
+  remoteTracks[participant].splice(idx, 1)
 }
 
 function onConferenceJoined () {
   console.log('conference joined')
   isJoined = true
 
-  localTracks.forEach(track => {
-    room.addTrack(track)
-  })
+  // localTracks.forEach(track => {
+  //   room.addTrack(track)
+  // })
 }
 
 function onUserJoined (id) {
@@ -162,7 +179,13 @@ function onConnectionFailed () {
 }
 
 function onConnectionDisconnected () {
+  const { CONNECTION_ESTABLISHED, CONNECTION_FAILED, CONNECTION_DISCONNECTED } = JitsiMeetJS.events.connection
+
   console.log('connection disconected')
+  connection.removeEventListener(CONNECTION_ESTABLISHED, onConnectionEstablished)
+  connection.removeEventListener(CONNECTION_FAILED, onConnectionFailed)
+  connection.removeEventListener(CONNECTION_DISCONNECTED, onConnectionDisconnected)
+
 }
 
 function onLocalTracks (tracks) {
@@ -176,7 +199,7 @@ function onLocalTracks (tracks) {
   } = JitsiMeetJS.events.track
 
   tracks.forEach((track, i) => {
-    track.mute()
+    // track.mute()
 
     track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, audioLevel => {
       console.log(`Audio level local: ${audioLevel}`)
@@ -193,7 +216,11 @@ function onLocalTracks (tracks) {
     track.addEventListener(TRACK_AUDIO_OUTPUT_CHANGED, deviceId => {
       console.log(`track audio output device was changed to ${deviceId}`)
     })
+  })
+}
 
+function createVideoElements (tracks) {
+  tracks.forEach((track, i) => {
     if (track.getType() === 'video') {
       console.log('local video append')
       $('#video-root').append(`<video autoplay='false' id='localVideo${i}' width='400' height='300' controls>`)
@@ -201,21 +228,45 @@ function onLocalTracks (tracks) {
     }
 
     if (track.getType() === 'audio') {
-      console.log('local video append')
+      console.log('local audio append')
       $('#video-root').append(`<audio autoplay='autoplay' muted='true' id='localAudio${i}'>`)
       track.attach($(`#localAudio${i}`)[0])
     }
 
+    console.log('isJoined: ', isJoined)
     if (isJoined) {
       room.addTrack(track)
     }
   })
 }
 
+function destroyVideoElements (tracks) {
+  tracks.forEach((track, i) => {
+    if (track.getType() === 'video') {
+      console.log('local video remove')
+      const videoElement = $(`#localVideo${i}`)[0]
 
-$(document).ready(() => {
-  createConnection()
-})
+      if (!videoElement) return
+
+      track.detach(videoElement)
+      videoElement.remove()
+    }
+
+    if (track.getType() === 'audio') {
+      console.log('local audio remove')
+
+      const audioElement = $(`#localAudio${i}`)[0]
+
+      if (!audioElement) return
+
+      track.detach(audioElement)
+      audioElement.remove()
+    }
+
+    room.removeTrack(track)
+  })
+}
+
 
 function createConnection () {
   console.log('create connection')
@@ -233,34 +284,46 @@ function createConnection () {
   connection.connect()
 }
 
+function destroyConnection () {
+  console.log('destroy connection')
+  connection.disconnect()
+}
+
 export default function App () {
   useEffect(() => {
-    // window.addEventListener('load', createConnection)
+    createConnection()
 
-    // return function cleanup () {
-    //   window.removeEventListener('load', createConnection)
-    // }
+    return function cleanup() {
+      destroyConnection()
+    }
   }, [])
 
   function setModeratorMode () {
     console.log('moderator')
-    localTracks.forEach(track => {
-      track.unmute()
-    })
+    // localTracks.forEach(track => {
+    //   track.unmute()
+    // })
+    createVideoElements(localTracks)
   }
 
   function setUserMode () {
     console.log('user')
-    localTracks.forEach(track => {
-      track.mute()
-    })
+    // localTracks.forEach(track => {
+    //   track.mute()
+    // })
+    destroyVideoElements(localTracks)
+  }
+
+  function onTestCmd () {
+    room.sendCommandOnce('testCmd', { value: true })
   }
 
   return (
     <div className="app">
       <div className="app__controls">
-        <button className="btn" type="button" onClick={setModeratorMode}>Модератор</button>
+        <button className="btn" type="button" onClick={setModeratorMode}>Докладчик</button>
         <button className="btn" type="button" onClick={setUserMode}>Слушатель</button>
+        <button className="btn" type="button" onClick={onTestCmd}>TestCmd</button>
       </div>
     </div>
   )
