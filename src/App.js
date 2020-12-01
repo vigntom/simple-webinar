@@ -1,7 +1,8 @@
 /* global $, JitsiMeetJS */
 import React, { useEffect, useState } from 'react'
 
-const DOMAIN = 'beta.meet.jit.si'
+// const DOMAIN = 'beta.meet.jit.si'
+const DOMAIN = 'meet.educate.market'
 const options = {
   hosts: {
     domain: DOMAIN,
@@ -12,44 +13,37 @@ const options = {
 };
 
 const confOptions = {
-    openBridgeChannel: true
+  openBridgeChannel: 'websocket'
 };
 
-JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
 const initOptions = {
-  disableAudioLevels: true
+  disableAudioLevels: false
 };
 
-JitsiMeetJS.init(initOptions);
-
-const CONFERENCE = 'abc123is48282'
+const CONFERENCE = 'abc123is48282aabd2223'
 let localTracks = []
 let isJoined = false
 let room = null
+let connection = null
 const remoteTracks = {}
-
-const connection = new JitsiMeetJS.JitsiConnection(null, null, options)
-const { CONNECTION_ESTABLISHED, CONNECTION_FAILED, CONNECTION_DISCONNECTED } = JitsiMeetJS.events.connection
-const {
-  TRACK_AUDIO_LEVEL_CHANGED,
-  TRACK_MUTE_CHANGED,
-  LOCAL_TRACK_STOPPED,
-  TRACK_AUDIO_OUTPUT_CHANGED
-} = JitsiMeetJS.events.track
-const {
-  TRACK_ADDED,
-  TRACK_REMOVED,
-  CONFERENCE_JOINED,
-  USER_JOINED,
-  USER_LEFT,
-  DISPLAY_NAME_CHANGED,
-  PHONE_NUMBER_CHANGED
-} = JitsiMeetJS.events.conference
 
 function onConnectionEstablished () {
   console.log('connection established')
+
+  const {
+    TRACK_ADDED,
+    TRACK_REMOVED,
+    CONFERENCE_JOINED,
+    USER_JOINED,
+    USER_LEFT,
+    DISPLAY_NAME_CHANGED,
+    PHONE_NUMBER_CHANGED,
+    TRACK_MUTE_CHANGED,
+    TRACK_AUDIO_LEVEL_CHANGED,
+  } = JitsiMeetJS.events.conference
+
   room = connection.initJitsiConference(CONFERENCE, confOptions)
-  room.on(JitsiMeetJS.events.conference.TRACK_ADDED, onRemoteTrackAdded)
+  room.on(TRACK_ADDED, onRemoteTrackAdded)
   room.on(TRACK_REMOVED, onRemoteTrackRemoved)
   room.on(CONFERENCE_JOINED, onConferenceJoined)
   room.on(USER_JOINED, onUserJoined)
@@ -57,11 +51,41 @@ function onConnectionEstablished () {
   room.on(DISPLAY_NAME_CHANGED, onDisplayNameChanged)
   room.on(TRACK_AUDIO_LEVEL_CHANGED, onTrackAudioLevelChanged)
   room.on(PHONE_NUMBER_CHANGED, onPhoneNumberChanged)
+
+  JitsiMeetJS.createLocalTracks({
+    devices: ['audio', 'video'],
+    resolution: 720,
+    constraints: {
+      video: {
+        height: {
+          ideal: 720,
+          max: 720,
+          min: 180
+        },
+        width: {
+          ideal: 1280,
+          max: 1280,
+          min: 320
+        }
+      }
+    }
+  }).then(onLocalTracks)
+    .catch(error => {
+      throw error
+    })
+
   room.join()
 }
 
 function onRemoteTrackAdded (track) {
   console.log('remote track added', track.getType(), track.isLocal())
+  const {
+    TRACK_AUDIO_LEVEL_CHANGED,
+    TRACK_MUTE_CHANGED,
+    LOCAL_TRACK_STOPPED,
+    TRACK_AUDIO_OUTPUT_CHANGED
+  } = JitsiMeetJS.events.track
+
   if (track.isLocal()) return
   console.log('remote track not local')
 
@@ -73,9 +97,9 @@ function onRemoteTrackAdded (track) {
 
   const idx = remoteTracks[participant].push(track)
 
-  track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, audioLevel => {
-    console.log(`Audio level remote: ${audioLevel}`)
-  })
+  // track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, audioLevel => {
+  //   console.log(`Audio level remote: ${audioLevel}`)
+  // })
 
   track.addEventListener(TRACK_MUTE_CHANGED, (state) => {
     console.log('remote track mute changed: ', state)
@@ -85,23 +109,19 @@ function onRemoteTrackAdded (track) {
     console.log('Remote track stopped')
   })
 
-  track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, diveiceID => {
-    console.log(`track audio output device was changed to ${diveiceID}`)
-  })
+//   track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, diveiceID => {
+//     console.log(`track audio output device was changed to ${diveiceID}`)
+//   })
 
   const id = participant + track.getType() + idx
 
-  if (track.getType() === 'video') {
-    console.log('append remote video')
+  console.log('append remote track: ', track.getType())
 
-    $('.app__main').append(
-      `<video autoplay='1' id='${participant}video${idx} width='200' height='150' controls />`
-    )
+  if (track.getType() === 'video') {
+    $('.app__main').append(`<video autoplay='false' id='${participant}video${idx}' width='400' height='300' controls>`)
   } else {
     console.log('append remote audio')
-    $('.app__main').append(
-      `<audio autoplay='1' id=${participant}audio${idx} />`
-    )
+    $('.app__main').append(`<audio autoplay='false' id='${participant}audio${idx}'>`)
   }
 
   track.attach($(`#${id}`)[0])
@@ -145,6 +165,14 @@ function onConnectionDisconnected () {
 
 function onLocalTracks (tracks) {
   localTracks = tracks
+
+  const {
+    TRACK_AUDIO_LEVEL_CHANGED,
+    TRACK_MUTE_CHANGED,
+    LOCAL_TRACK_STOPPED,
+    TRACK_AUDIO_OUTPUT_CHANGED
+  } = JitsiMeetJS.events.track
+
   tracks.forEach((track, i) => {
     track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, audioLevel => {
       console.log(`Audio level local: ${audioLevel}`)
@@ -163,14 +191,14 @@ function onLocalTracks (tracks) {
     })
 
     if (track.getType() === 'video') {
-      console.log('remote video append')
-      $('.app__main').append(`<video autoplay='1' id='localVideo${i}' width='400' height='300' controls>`)
+      console.log('local video append')
+      $('.app__main').append(`<video autoplay='false' id='localVideo${i}' width='400' height='300' controls>`)
       track.attach($(`#localVideo${i}`)[0])
     }
 
     if (track.getType() === 'audio') {
-      console.log('remote video append')
-      $('.app__main').append(`<audio autoplay='1' muted='true' id='localAudio${i}'>`)
+      console.log('local video append')
+      $('.app__main').append(`<audio autoplay='autoplay' muted='true' id='localAudio${i}'>`)
       track.attach($(`#localAudio${i}`)[0])
     }
 
@@ -180,21 +208,37 @@ function onLocalTracks (tracks) {
   })
 }
 
-connection.addEventListener(CONNECTION_ESTABLISHED, onConnectionEstablished)
-connection.addEventListener(CONNECTION_FAILED, onConnectionFailed)
-connection.addEventListener(CONNECTION_DISCONNECTED, onConnectionDisconnected)
 
+$(document).ready(() => {
+  createConnection()
+})
 
-connection.connect()
+function createConnection () {
+  console.log('create connection')
+  const { CONNECTION_ESTABLISHED, CONNECTION_FAILED, CONNECTION_DISCONNECTED } = JitsiMeetJS.events.connection
 
-JitsiMeetJS.createLocalTracks({ devices: ['audio', 'video'] })
-  .then(onLocalTracks)
-  .catch(error => {
-    throw error
-  })
+  JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
+  JitsiMeetJS.init();
+
+  connection = new JitsiMeetJS.JitsiConnection(null, null, options)
+
+  connection.addEventListener(CONNECTION_ESTABLISHED, onConnectionEstablished)
+  connection.addEventListener(CONNECTION_FAILED, onConnectionFailed)
+  connection.addEventListener(CONNECTION_DISCONNECTED, onConnectionDisconnected)
+
+  connection.connect()
+}
 
 export default function App () {
   const [isModerator, setIsModerator] = useState(false)
+
+  useEffect(() => {
+    // window.addEventListener('load', createConnection)
+
+    // return function cleanup () {
+    //   window.removeEventListener('load', createConnection)
+    // }
+  }, [])
 
   function setModeratorMode () {
     console.log('moderator')
