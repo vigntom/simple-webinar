@@ -1,14 +1,16 @@
 /* global $, JitsiMeetJS */
 import React, { useEffect, useState } from 'react'
 
-const DOMAIN = 'beta.meet.jit.si'
-// const DOMAIN = 'meet.educate.market'
+// const DOMAIN = 'beta.meet.jit.si'
+const CONFERENCE = 'abc123is48282aabd222311aabb'
+const DOMAIN = 'meet.educate.market'
+const VDOMAIN = 'meet.jitsi'
 const options = {
   hosts: {
-    domain: DOMAIN,
-    muc: `conference.${DOMAIN}`
+    domain: VDOMAIN,
+    muc: `muc.${VDOMAIN}`
   },
-  bosh: `https://${DOMAIN}/http-bind`,
+  bosh: `https://${DOMAIN}/http-bind?room=${CONFERENCE}`,
   clientNode: 'http://jitsi.org/jitsimeet'
 };
 
@@ -20,7 +22,6 @@ const initOptions = {
   disableAudioLevels: false
 };
 
-const CONFERENCE = 'abc123is48282aabd222311aabb'
 let localTracks = []
 let isJoined = false
 let room = null
