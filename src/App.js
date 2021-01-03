@@ -1,26 +1,47 @@
 /* global $, JitsiMeetJS */
 import React, { useEffect, useState } from 'react'
 
-// const DOMAIN = 'beta.meet.jit.si'
 const CONFERENCE = 'abc123is48282aabd222311aabb'
-const DOMAIN = 'meet.educate.market'
-const VDOMAIN = 'meet.jitsi'
+const DOMAIN = 'beta.meet.jit.si'
+// const DOMAIN = 'meet.educate.market'
+const VDOMAIN = 'beta.meet.jit.si'
+// const VDOMAIN = 'meet.jitsi'
 const options = {
   hosts: {
     domain: VDOMAIN,
-    muc: `muc.${VDOMAIN}`
+    // muc: `muc.${VDOMAIN}`
+    muc: `conference.${VDOMAIN}`
   },
   bosh: `https://${DOMAIN}/http-bind?room=${CONFERENCE}`,
   clientNode: 'http://jitsi.org/jitsimeet'
-};
+}
 
 const confOptions = {
   openBridgeChannel: 'websocket'
-};
+}
+
+const constraints = {
+  resolution: 720,
+  constraints: {
+    video: {
+      height: {
+        ideal: 720,
+        max: 720,
+        min: 180
+      },
+      width: {
+        ideal: 1280,
+        max: 1280,
+        min: 320
+      },
+      aspectRatio: 1.7777778
+    }
+  }
+}
 
 const initOptions = {
   disableAudioLevels: false
-};
+}
 
 let localTracks = []
 let isJoined = false
@@ -40,7 +61,7 @@ function onConnectionEstablished () {
     DISPLAY_NAME_CHANGED,
     PHONE_NUMBER_CHANGED,
     TRACK_MUTE_CHANGED,
-    TRACK_AUDIO_LEVEL_CHANGED,
+    TRACK_AUDIO_LEVEL_CHANGED
   } = JitsiMeetJS.events.conference
 
   room = connection.initJitsiConference(CONFERENCE, confOptions)
@@ -58,21 +79,7 @@ function onConnectionEstablished () {
 
   JitsiMeetJS.createLocalTracks({
     devices: ['audio', 'video'],
-    resolution: 720,
-    constraints: {
-      video: {
-        height: {
-          ideal: 720,
-          max: 720,
-          min: 180
-        },
-        width: {
-          ideal: 1280,
-          max: 1280,
-          min: 320
-        }
-      }
-    }
+    ...constraints
   }).then(onLocalTracks)
     .catch(error => {
       throw error
@@ -124,14 +131,12 @@ function onRemoteTrackAdded (track) {
   track.attach($(`#${id}`)[0])
 }
 
-
 function onRemoteTrackRemoved (track) {
   console.log('remote track removed: ', track)
 
   const participant = track.getParticipantId()
 
   if (!remoteTracks[participant]) return
-
 
   const id = participant + track.getType()
   const element = $(`#${id}`)[0]
@@ -186,7 +191,6 @@ function onConnectionDisconnected () {
   connection.removeEventListener(CONNECTION_ESTABLISHED, onConnectionEstablished)
   connection.removeEventListener(CONNECTION_FAILED, onConnectionFailed)
   connection.removeEventListener(CONNECTION_DISCONNECTED, onConnectionDisconnected)
-
 }
 
 function onLocalTracks (tracks) {
@@ -203,49 +207,75 @@ function onLocalTracks (tracks) {
     // track.mute()
 
     track.addEventListener(TRACK_AUDIO_LEVEL_CHANGED, audioLevel => {
-      console.log(`Audio level local: ${audioLevel}`)
+      // console.log(`Audio level local: ${audioLevel}`)
     })
 
     track.addEventListener(TRACK_MUTE_CHANGED, (x) => {
-      console.log('local track muted', x)
+      // console.log('local track muted', x)
     })
 
     track.addEventListener(LOCAL_TRACK_STOPPED, () => {
-      console.log('local track stopped')
+      // console.log('local track stopped')
     })
 
     track.addEventListener(TRACK_AUDIO_OUTPUT_CHANGED, deviceId => {
-      console.log(`track audio output device was changed to ${deviceId}`)
+      // console.log(`track audio output device was changed to ${deviceId}`)
     })
   })
 }
 
 function createVideoElements (tracks) {
-  tracks.forEach((track, i) => {
+  tracks.forEach(track => {
+    const id = track.getDeviceId()
     if (track.getType() === 'video') {
       console.log('local video append')
-      $('#video-root').append(`<video autoplay='false' id='localVideo${i}' width='400' height='300' controls>`)
-      track.attach($(`#localVideo${i}`)[0])
+
+      $('#video-root').append(`<video autoplay='false' id='localVideo${id}' width='400' height='300' controls>`)
+      track.attach($(`#localVideo${id}`)[0])
     }
 
     if (track.getType() === 'audio') {
       console.log('local audio append')
-      $('#video-root').append(`<audio autoplay='autoplay' muted='true' id='localAudio${i}'>`)
-      track.attach($(`#localAudio${i}`)[0])
+
+      $('#video-root').append(`<audio autoplay='autoplay' muted='true' id='localAudio${id}'>`)
+      track.attach($(`#localAudio${id}`)[0])
     }
 
     console.log('isJoined: ', isJoined)
+
     if (isJoined) {
       room.addTrack(track)
     }
   })
 }
 
+function destroyTrack (track) {
+  const type = track.getType()
+  const id = track.getDeviceId()
+  const elementId = type === 'video' ? `#localVideo${id}` : `#localAudio${id}`
+  const element = $(elementId)[0]
+
+  return Promise.resolve()
+    .then(() => {
+      if (!element) return
+
+      return track.detach(element)
+    }).then(() => {
+      return room.removeTrack(track)
+    }).then(() => {
+      return track.dispose()
+    }).catch(error => {
+      console.log(error)
+    })
+}
+
 function destroyVideoElements (tracks) {
-  tracks.forEach((track, i) => {
+  tracks.forEach(track => {
+    const id = track.getDeviceId()
     if (track.getType() === 'video') {
       console.log('local video remove')
-      const videoElement = $(`#localVideo${i}`)[0]
+
+      const videoElement = $(`#localVideo${id}`)[0]
 
       if (!videoElement) return
 
@@ -256,7 +286,7 @@ function destroyVideoElements (tracks) {
     if (track.getType() === 'audio') {
       console.log('local audio remove')
 
-      const audioElement = $(`#localAudio${i}`)[0]
+      const audioElement = $(`#localAudio${id}`)[0]
 
       if (!audioElement) return
 
@@ -268,13 +298,12 @@ function destroyVideoElements (tracks) {
   })
 }
 
-
 function createConnection () {
   console.log('create connection')
   const { CONNECTION_ESTABLISHED, CONNECTION_FAILED, CONNECTION_DISCONNECTED } = JitsiMeetJS.events.connection
 
-  JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
-  JitsiMeetJS.init();
+  JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR)
+  JitsiMeetJS.init()
 
   connection = new JitsiMeetJS.JitsiConnection(null, null, options)
 
@@ -290,11 +319,135 @@ function destroyConnection () {
   connection.disconnect()
 }
 
+function getMediaDevices () {
+  return new Promise((resolve, reject) => {
+    const isDeviceListAvailable = JitsiMeetJS.mediaDevices.isDeviceListAvailable()
+
+    if (!isDeviceListAvailable) reject(new Error('Device list is not available!'))
+
+    JitsiMeetJS.mediaDevices.enumerateDevices(devices => {
+      const result = devices.reduce((result, current) => {
+        const { deviceId, label, kind } = current
+        console.log('=> current device: ', current)
+        if (!result[kind]) {
+          result[kind] = []
+        }
+
+        result[kind].push({ deviceId, label })
+        return result
+      }, {})
+
+      resolve(result)
+    })
+  })
+}
+
+function getVideoTracks (room) {
+  const tracks = room.getLocalTracks()
+  console.log('tracks: ', tracks)
+  return tracks.filter(x => x.getType() === 'video')
+}
+
+function getAudioTracks (room) {
+  const tracks = room.getLocalTracks()
+  return tracks.filter(x => x.getType() === 'audio')
+}
+
+function getActiveDevice (kind) {
+  if (kind === 'videoinput') {
+    const track = getVideoTracks(room)[0]
+    return track?.getDeviceId()
+  }
+
+  if (kind === 'audioinput') {
+    const track = getAudioTracks(room)[0]
+    return track?.getDeviceId()
+  }
+
+  if (kind === 'audiooutput') {
+    return JitsiMeetJS.mediaDevices.getAudioOutputDevice()
+  }
+}
+
+function DeviceList ({ isTracksReady }) {
+  const [devices, setDevices] = useState(null)
+
+  useEffect(() => {
+    if (!isTracksReady) return
+
+    getMediaDevices()
+      .then(deviceList => {
+        setDevices(deviceList)
+      })
+  }, [isTracksReady])
+
+  if (!devices) return null
+  if (!isTracksReady) return null
+
+  function handleOnChange (e) {
+    const { value } = e.currentTarget
+    const kind = e.currentTarget.dataset.type
+
+    const tracks = room.getLocalTracks()
+    const current = tracks.find(x => {
+      const type = x.getType()
+      if (kind === 'videoinput') return type === 'video'
+      if (kind === 'audioinput') return type === 'audio'
+      return false
+    })
+
+    if (!current) return
+    const type = current.getType()
+
+    return destroyTrack(current)
+      .then(() => {
+        return JitsiMeetJS.createLocalTracks({
+          devices: [type],
+          ...constraints
+        }).then(tracks => {
+          console.log('=> tracks created: ', tracks)
+          return createVideoElements(tracks)
+        })
+      })
+  }
+
+  return (
+    <div className='device-list'>
+      {
+        Object.keys(devices).map(kind => {
+          const activeDeviceId = getActiveDevice(kind)
+          console.log('=> active device: ', activeDeviceId)
+
+          return (
+            <div key={kind}>
+              <label>
+                <h3>{kind}</h3>
+                <select onChange={handleOnChange} data-type={kind} value={activeDeviceId}>
+                  {
+                    devices[kind].map(({ deviceId, label }) => {
+                      return (
+                        <option key={deviceId} value={deviceId}>
+                          {label}
+                        </option>
+                      )
+                    })
+                  }
+                </select>
+              </label>
+            </div>
+          )
+        })
+      }
+    </div>
+  )
+}
+
 export default function App () {
+  const [isTracksReady, setIsTracksReady] = useState(false)
   useEffect(() => {
     createConnection()
 
-    return function cleanup() {
+    return function cleanup () {
       destroyConnection()
     }
   }, [])
@@ -305,6 +458,7 @@ export default function App () {
     //   track.unmute()
     // })
     createVideoElements(localTracks)
+    setIsTracksReady(true)
   }
 
   function setUserMode () {
@@ -320,11 +474,12 @@ export default function App () {
   }
 
   return (
-    <div className="app">
-      <div className="app__controls">
-        <button className="btn" type="button" onClick={setModeratorMode}>Докладчик</button>
-        <button className="btn" type="button" onClick={setUserMode}>Слушатель</button>
-        <button className="btn" type="button" onClick={onTestCmd}>TestCmd</button>
+    <div className='app'>
+      <div className='app__controls'>
+        <button className='btn' type='button' onClick={setModeratorMode}>Докладчик</button>
+        <button className='btn' type='button' onClick={setUserMode}>Слушатель</button>
+        <button className='btn' type='button' onClick={onTestCmd}>TestCmd</button>
+        <DeviceList isTracksReady={isTracksReady} />
       </div>
     </div>
   )
