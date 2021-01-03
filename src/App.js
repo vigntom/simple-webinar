@@ -21,7 +21,6 @@ const confOptions = {
 }
 
 const constraints = {
-  resolution: 720,
   constraints: {
     video: {
       height: {
@@ -122,7 +121,8 @@ function onRemoteTrackAdded (track) {
   console.log('append remote track: ', track.getType())
 
   if (track.getType() === 'video') {
-    $('#video-root').append(`<video autoplay='false' id='${participant}video' width='400' height='300' controls>`)
+    $('#video-root').append(`<video autoplay playsinline muted id='${participant}video' width='400' height='300' controls>`)
+    $(`#${participant}video`)[0].play()
   } else {
     console.log('append remote audio')
     $('#video-root').append(`<audio autoplay='false' id='${participant}audio'>`)
@@ -230,8 +230,9 @@ function createVideoElements (tracks) {
     if (track.getType() === 'video') {
       console.log('local video append')
 
-      $('#video-root').append(`<video autoplay='false' id='localVideo${id}' width='400' height='300' controls>`)
+      $('#video-root').append(`<video autoplay playsinline muted id='localVideo${id}' width='400' height='300' controls>`)
       track.attach($(`#localVideo${id}`)[0])
+      $(`#localVideo${id}`)[0].play()
     }
 
     if (track.getType() === 'audio') {
@@ -258,6 +259,7 @@ function destroyTrack (track) {
   return Promise.resolve()
     .then(() => {
       if (!element) return
+      element.remove()
 
       return track.detach(element)
     }).then(() => {
@@ -345,7 +347,10 @@ function getMediaDevices () {
 function getVideoTracks (room) {
   const tracks = room.getLocalTracks()
   console.log('tracks: ', tracks)
-  return tracks.filter(x => x.getType() === 'video')
+  return tracks.filter(x => {
+    console.log('=> trace track: ', x.getType())
+    return x.getType() === 'video'
+  })
 }
 
 function getAudioTracks (room) {
@@ -356,11 +361,13 @@ function getAudioTracks (room) {
 function getActiveDevice (kind) {
   if (kind === 'videoinput') {
     const track = getVideoTracks(room)[0]
+    console.log('=> getVideoTracks: ', track)
     return track?.getDeviceId()
   }
 
   if (kind === 'audioinput') {
     const track = getAudioTracks(room)[0]
+    console.log('=> getAudioTracks: ', track)
     return track?.getDeviceId()
   }
 
@@ -371,18 +378,29 @@ function getActiveDevice (kind) {
 
 function DeviceList ({ isTracksReady }) {
   const [devices, setDevices] = useState(null)
+  const [activeDevices, setActiveDevices] = useState(null)
 
   useEffect(() => {
     if (!isTracksReady) return
 
     getMediaDevices()
       .then(deviceList => {
+        setActiveDevices(['audioinput', 'videoinput', 'audiooutput']
+          .reduce((result, current) => {
+            return { ...result, [current]: getActiveDevice(current) }
+          }, {})
+        )
         setDevices(deviceList)
       })
   }, [isTracksReady])
 
+  useEffect(() => {
+    console.log('=> test activeDevices: ', activeDevices)
+  }, [activeDevices])
+
   if (!devices) return null
   if (!isTracksReady) return null
+  if (!activeDevices) return null
 
   function handleOnChange (e) {
     const { value } = e.currentTarget
@@ -399,15 +417,29 @@ function DeviceList ({ isTracksReady }) {
     if (!current) return
     const type = current.getType()
 
+    const deviceOptions = {}
+
+    if (type === 'audio') {
+      deviceOptions.micDeviceId = value
+    }
+
+    if (type === 'video') {
+      deviceOptions.cameraDeviceId = value
+    }
+
     return destroyTrack(current)
       .then(() => {
         return JitsiMeetJS.createLocalTracks({
           devices: [type],
-          ...constraints
-        }).then(tracks => {
-          console.log('=> tracks created: ', tracks)
-          return createVideoElements(tracks)
+          ...constraints,
+          ...deviceOptions
         })
+      }).then(tracks => {
+        console.log('=> tracks created: ', tracks)
+        return createVideoElements(tracks)
+      }).then(() => {
+        const activeDeviceId = getActiveDevice(kind)
+        setActiveDevices(s => ({ ...s, [kind]: activeDeviceId }))
       })
   }
 
@@ -415,8 +447,7 @@ function DeviceList ({ isTracksReady }) {
     <div className='device-list'>
       {
         Object.keys(devices).map(kind => {
-          const activeDeviceId = getActiveDevice(kind)
-          console.log('=> active device: ', activeDeviceId)
+          const activeDeviceId = activeDevices[kind]
 
           return (
             <div key={kind}>
