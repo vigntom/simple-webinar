@@ -122,7 +122,7 @@ function onRemoteTrackAdded (track) {
 
   if (track.getType() === 'video') {
     $('#video-root').append(`<video autoplay playsinline muted id='${participant}video' width='400' height='300' controls>`)
-    $(`#${participant}video`)[0].play()
+    $(`#${participant}video`)[0].load()
   } else {
     console.log('append remote audio')
     $('#video-root').append(`<audio autoplay='false' id='${participant}audio'>`)
