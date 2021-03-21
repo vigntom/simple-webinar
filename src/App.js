@@ -232,7 +232,7 @@ function createVideoElements (tracks) {
 
       $('#video-root').append(`<video autoplay playsinline muted id='localVideo${id}' width='400' height='300' controls>`)
       track.attach($(`#localVideo${id}`)[0])
-      $(`#localVideo${id}`)[0].play()
+      $(`#localVideo${id}`)[0].load()
     }
 
     if (track.getType() === 'audio') {
