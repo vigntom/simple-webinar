@@ -21,8 +21,7 @@ const options = {
     focus: `focus.${VDOMAIN}`
   },
   bosh: `https://${DOMAIN}/http-bind?room=${CONFERENCE}`,
-  serviceUrl: `wss://${DOMAIN}/xmpp-websocket`,
-  websocketKeepAliveUrl: 'https://meet.jit.si/_unlock',
+  // serviceUrl: `wss://${DOMAIN}/xmpp-websocket`,
   clientNode: 'http://jitsi.org/jitsimeet'
 }
 
