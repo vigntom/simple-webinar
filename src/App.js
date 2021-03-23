@@ -1,27 +1,41 @@
 /* global $, JitsiMeetJS */
+
 import React, { useEffect, useState } from 'react'
 
 const CONFERENCE = 'abc123is48282aabd222311aabb'
-const DOMAIN = 'beta.meet.jit.si'
+const DOMAIN = 'meet.jit.si'
 // const DOMAIN = 'meet.educate.market'
-const VDOMAIN = 'beta.meet.jit.si'
+const VDOMAIN = 'meet.jit.si'
 // const VDOMAIN = 'meet.jitsi'
+
+// const serviceList = {
+//   bosh: '//meet.jit.si/http-bind', // FIXME: use xep-0156 for that
+//   websocket: 'wss://meet.jit.si/xmpp-websocket', // FIXME: use xep-0156 for that
+// }
+
 const options = {
   hosts: {
     domain: VDOMAIN,
     // muc: `muc.${VDOMAIN}`
-    muc: `conference.${VDOMAIN}`
+    muc: `conference.${VDOMAIN}`,
+    focus: `focus.${VDOMAIN}`
   },
   bosh: `https://${DOMAIN}/http-bind?room=${CONFERENCE}`,
+  serviceUrl: `wss://${DOMAIN}/xmpp-websocket`,
+  websocketKeepAliveUrl: 'https://meet.jit.si/_unlock',
   clientNode: 'http://jitsi.org/jitsimeet'
 }
 
 const confOptions = {
-  openBridgeChannel: 'websocket'
+  openBridgeChannel: 'websocket',
+  p2p: {
+    enabled: false
+  }
 }
 
 const constraints = {
   constraints: {
+    resulution: 720,
     video: {
       height: {
         ideal: 720,
