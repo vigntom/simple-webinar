@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react'
 
 const CONFERENCE = 'abc123is48282aabd222311aabb'
-const DOMAIN = 'meet.jit.si'
-// const DOMAIN = 'meet.educate.market'
-const VDOMAIN = 'meet.jit.si'
-// const VDOMAIN = 'meet.jitsi'
+// const DOMAIN = 'meet.jit.si'
+const DOMAIN = 'meet.educate.market'
+// const VDOMAIN = 'meet.jit.si'
+const VDOMAIN = 'meet.jitsi'
 
 // const serviceList = {
 //   bosh: '//meet.jit.si/http-bind', // FIXME: use xep-0156 for that
@@ -16,12 +16,12 @@ const VDOMAIN = 'meet.jit.si'
 const options = {
   hosts: {
     domain: VDOMAIN,
-    // muc: `muc.${VDOMAIN}`
-    muc: `conference.${VDOMAIN}`,
-    focus: `focus.${VDOMAIN}`
+    muc: `muc.${VDOMAIN}`
+    // muc: `conference.${VDOMAIN}`,
+    // focus: `focus.${VDOMAIN}`
   },
   bosh: `https://${DOMAIN}/http-bind?room=${CONFERENCE}`,
-  // serviceUrl: `wss://${DOMAIN}/xmpp-websocket`,
+  websocket: `wss://${DOMAIN}/xmpp-websocket`,
   clientNode: 'http://jitsi.org/jitsimeet'
 }
 
