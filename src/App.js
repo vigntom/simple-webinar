@@ -251,7 +251,7 @@ function createVideoElements (tracks) {
     if (track.getType() === 'audio') {
       console.log('local audio append')
 
-      $('#video-root').append(`<audio autoplay='autoplay' muted='true' id='localAudio${id}'>`)
+      $('#video-root').append(`<audio autoplay='autoplay' id='localAudio${id}' controls>`)
       track.attach($(`#localAudio${id}`)[0])
     }
 
